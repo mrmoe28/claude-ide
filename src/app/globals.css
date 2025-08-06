@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/* Global styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  font-family: 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  height: 100%;
+  overflow: hidden;
+  transition: background-color 200ms ease-in-out, color 200ms ease-in-out;
+}
+
+/* Light theme */
+body {
+  background-color: #ffffff;
+  color: #333333;
+}
+
+/* Dark theme */
+.dark body {
+  background-color: #1e1e1e;
+  color: #cccccc;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #999999;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #464647;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #666666;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #5a5a5a;
+}
+
+/* Code syntax highlighting placeholder */
+pre {
+  background: #f8f8f8;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', 'Fira Code', Monaco, monospace;
+}
+
+.dark pre {
+  background: #2d2d30;
+}
