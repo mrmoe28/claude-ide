@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
   },
   
   // External packages for server components
-  serverExternalPackages: ['node-pty'],
+  serverExternalPackages: [],
 
   // Image optimization
   images: {

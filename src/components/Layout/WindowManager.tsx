@@ -20,8 +20,8 @@ import {
   FileExplorerSuspense
 } from '@/components/SuspenseWrapper'
 
-const MacTerminal = dynamic(
-  () => import('@/components/Terminal/MacTerminal').then(mod => ({ default: mod.MacTerminal })),
+const WebContainerTerminal = dynamic(
+  () => import('@/components/Terminal/WebContainerTerminal').then(mod => ({ default: mod.WebContainerTerminal })),
   { 
     ssr: false,
     loading: () => (
@@ -199,7 +199,7 @@ export function WindowManager({
                     </div>
                     {!terminalMinimized && (
                       <TerminalErrorBoundary>
-                        <MacTerminal workingDirectory={workingDirectory} />
+                        <WebContainerTerminal workingDirectory={workingDirectory} />
                       </TerminalErrorBoundary>
                     )}
                   </div>
