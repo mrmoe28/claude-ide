@@ -2,49 +2,68 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { FileTreeItem } from './FileTreeItem'
-import { FileTreeNode, GitHubContent } from '@/types/github'
-import { useGitHub } from '@/hooks/useGitHub'
+import { FileTreeNode } from '@/types/github'
+import { useFileSystem } from '@/hooks/useFileSystem'
 import { Loader2 } from 'lucide-react'
+import '@/types/filesystem'
 
 interface FileTreeProps {
-  owner: string
-  repo: string
+  directoryHandle: FileSystemDirectoryHandle | null
   onFileSelect: (path: string, content: string) => void
   selectedFile?: string
 }
 
-export function FileTree({ owner, repo, onFileSelect, selectedFile }: FileTreeProps) {
-  const [treeData, setTreeData] = useState<FileTreeNode[]>([])
+interface FileSystemTreeNode extends FileTreeNode {
+  handle?: FileSystemFileHandle | FileSystemDirectoryHandle
+}
+
+export function FileTree({ directoryHandle, onFileSelect, selectedFile }: FileTreeProps) {
+  const [treeData, setTreeData] = useState<FileSystemTreeNode[]>([])
   const [loading, setLoading] = useState(true)
-  const { getRepositoryContents, getFileContent } = useGitHub()
+  const { getDirectoryContents, getFileContent } = useFileSystem()
 
-  const buildFileTree = (contents: GitHubContent[]): FileTreeNode[] => {
-    return contents
-      .sort((a, b) => {
-        // Directories first, then files
-        if (a.type !== b.type) {
-          return a.type === 'dir' ? -1 : 1
+  const buildFileTree = useCallback(async (
+    handle: FileSystemDirectoryHandle, 
+    basePath = ''
+  ): Promise<FileSystemTreeNode[]> => {
+    const children: FileSystemTreeNode[] = []
+
+    try {
+      for await (const [name, childHandle] of handle.entries()) {
+        // Skip hidden files and common build/cache directories
+        if (name.startsWith('.') || 
+            name === 'node_modules' || 
+            name === 'dist' || 
+            name === 'build' || 
+            name === '.git') {
+          continue
         }
-        return a.name.localeCompare(b.name)
-      })
-      .map(item => ({
-        name: item.name,
-        path: item.path,
-        type: item.type === 'dir' ? 'dir' : 'file' as const,
-        children: item.type === 'dir' ? [] : undefined,
-        expanded: false
-      }))
-  }
 
-  const loadRepositoryContents = useCallback(async (path: string = '') => {
-    const contents = await getRepositoryContents(owner, repo, path)
-    if (contents && Array.isArray(contents)) {
-      return buildFileTree(contents)
+        const path = basePath ? `${basePath}/${name}` : name
+        
+        children.push({
+          name,
+          path,
+          type: childHandle.kind === 'directory' ? 'dir' : 'file',
+          handle: childHandle as FileSystemFileHandle | FileSystemDirectoryHandle,
+          children: childHandle.kind === 'directory' ? [] : undefined,
+          expanded: false
+        })
+      }
+    } catch (err) {
+      console.warn('Error reading directory:', err)
     }
-    return []
-  }, [owner, repo, getRepositoryContents])
 
-  const updateNodeChildren = (nodes: FileTreeNode[], targetPath: string, children: FileTreeNode[]): FileTreeNode[] => {
+    // Sort: directories first, then files, both alphabetically
+    return children.sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type === 'dir' ? -1 : 1
+      }
+      return a.name.localeCompare(b.name)
+    })
+  }, [])
+
+  const updateNodeChildren = (nodes: FileSystemTreeNode[], targetPath: string, children: FileSystemTreeNode[]): FileSystemTreeNode[] => {
     return nodes.map(node => {
       if (node.path === targetPath) {
         return { ...node, children, expanded: true }
@@ -56,7 +75,7 @@ export function FileTree({ owner, repo, onFileSelect, selectedFile }: FileTreePr
     })
   }
 
-  const toggleNodeExpansion = (nodes: FileTreeNode[], targetPath: string): FileTreeNode[] => {
+  const toggleNodeExpansion = (nodes: FileSystemTreeNode[], targetPath: string): FileSystemTreeNode[] => {
     return nodes.map(node => {
       if (node.path === targetPath) {
         return { ...node, expanded: !node.expanded }
@@ -71,10 +90,10 @@ export function FileTree({ owner, repo, onFileSelect, selectedFile }: FileTreePr
   const handleToggleExpand = async (path: string) => {
     const node = findNode(treeData, path)
     
-    if (node && node.type === 'dir') {
+    if (node && node.type === 'dir' && node.handle?.kind === 'directory') {
       if (!node.expanded && (!node.children || node.children.length === 0)) {
         // Load children for the first time
-        const children = await loadRepositoryContents(path)
+        const children = await buildFileTree(node.handle as FileSystemDirectoryHandle, path)
         setTreeData(prev => updateNodeChildren(prev, path, children))
       } else {
         // Just toggle expansion
@@ -83,7 +102,7 @@ export function FileTree({ owner, repo, onFileSelect, selectedFile }: FileTreePr
     }
   }
 
-  const findNode = (nodes: FileTreeNode[], targetPath: string): FileTreeNode | null => {
+  const findNode = (nodes: FileSystemTreeNode[], targetPath: string): FileSystemTreeNode | null => {
     for (const node of nodes) {
       if (node.path === targetPath) return node
       if (node.children) {
@@ -95,22 +114,35 @@ export function FileTree({ owner, repo, onFileSelect, selectedFile }: FileTreePr
   }
 
   const handleFileSelect = async (path: string) => {
-    const fileContent = await getFileContent(owner, repo, path)
-    if (fileContent) {
-      onFileSelect(path, fileContent.content)
+    try {
+      const node = findNode(treeData, path)
+      if (node && node.handle?.kind === 'file') {
+        const file = await (node.handle as FileSystemFileHandle).getFile()
+        const content = await file.text()
+        onFileSelect(path, content)
+      }
+    } catch (err) {
+      console.error('Error reading file:', err)
     }
   }
 
   useEffect(() => {
     const initializeTree = async () => {
+      if (!directoryHandle) return
+      
       setLoading(true)
-      const rootContents = await loadRepositoryContents()
-      setTreeData(rootContents)
-      setLoading(false)
+      try {
+        const rootContents = await buildFileTree(directoryHandle)
+        setTreeData(rootContents)
+      } catch (err) {
+        console.error('Error initializing file tree:', err)
+      } finally {
+        setLoading(false)
+      }
     }
 
     initializeTree()
-  }, [owner, repo, loadRepositoryContents])
+  }, [directoryHandle, buildFileTree])
 
   if (loading) {
     return (

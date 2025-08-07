@@ -11,7 +11,17 @@ export function MainLayout() {
   const [currentFile, setCurrentFile] = useState<{ path: string; content: string } | undefined>()
 
   const handleFileSelect = (path: string, content: string) => {
-    setCurrentFile({ path, content })
+    // Decode base64 content if it's encoded (from old GitHub API format)
+    let decodedContent = content
+    try {
+      // Try to decode as base64, if it fails, assume it's plain text
+      decodedContent = atob(content)
+    } catch {
+      // Content is already plain text
+      decodedContent = content
+    }
+    
+    setCurrentFile({ path, content: decodedContent })
   }
 
   if (isLoading) {
@@ -67,7 +77,6 @@ export function MainLayout() {
 
           <div className="flex-1 overflow-hidden">
             <Sidebar
-              currentRepo={undefined}
               onFileSelect={handleFileSelect}
               selectedFile={currentFile?.path}
             />
