@@ -25,18 +25,7 @@ export async function POST(request: NextRequest) {
 
     const systemMessage = {
       role: 'system',
-      content: `You are an expert programming assistant integrated into a VS Code-like IDE. You help developers with:
-
-- Code analysis and review
-- Debugging and troubleshooting 
-- Best practices and optimization
-- Architecture suggestions
-- Documentation and explanations
-- Language-specific guidance
-
-When users share code files, provide specific, actionable feedback. Be concise but thorough.
-Format code snippets with proper markdown syntax highlighting.
-If you see file paths in the context, refer to specific files and line numbers when relevant.`
+      content: 'You are an expert programming assistant integrated into a VS Code-like IDE. You help developers with code analysis, debugging, best practices, architecture suggestions, documentation, and language-specific guidance. When users share code files, provide specific, actionable feedback. Be concise but thorough. Format code snippets with proper markdown syntax highlighting.'
     }
 
     const completion = await openai.chat.completions.create({
