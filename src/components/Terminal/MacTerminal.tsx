@@ -15,8 +15,9 @@ export function MacTerminal({ workingDirectory, className = '' }: MacTerminalPro
   const terminalRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
-  const wsRef = useRef<WebSocket | null>(null)
+  const eventSourceRef = useRef<EventSource | null>(null)
   const [isConnected, setIsConnected] = useState(false)
+  const [sessionId] = useState(() => Math.random().toString(36).substring(7))
 
   useEffect(() => {
     // Only run on client side
@@ -74,92 +75,94 @@ export function MacTerminal({ workingDirectory, className = '' }: MacTerminalPro
     // Fit terminal to container
     fitAddon.fit()
 
-    // Connect to terminal WebSocket API
+    // Connect to terminal streaming API
     const connectToTerminal = () => {
       try {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-        const ws = new WebSocket(`${protocol}//${window.location.host}/api/terminal`)
-        
-        ws.onopen = () => {
+        const eventSource = new EventSource(`/api/terminal?sessionId=${sessionId}`)
+        eventSourceRef.current = eventSource
+
+        eventSource.onopen = () => {
           setIsConnected(true)
-          wsRef.current = ws
+          terminal.write('\r\n\x1b[32mConnected to real Mac terminal\x1b[0m\r\n')
           
-          // Initialize terminal with working directory
+          // Initialize terminal with working directory if provided
           if (workingDirectory) {
-            ws.send(JSON.stringify({ 
-              type: 'input', 
-              data: `cd "${workingDirectory}"\n` 
-            }))
+            sendInput(`cd "${workingDirectory}"\r`)
           }
         }
 
-        ws.onmessage = (event) => {
-          const message = JSON.parse(event.data)
-          if (message.type === 'output') {
-            terminal.write(message.data)
+        eventSource.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data)
+            if (message.type === 'output') {
+              terminal.write(message.data)
+            } else if (message.type === 'connected') {
+              console.log('Terminal session connected:', message.sessionId)
+            }
+          } catch (error) {
+            console.error('Failed to parse terminal message:', error)
           }
         }
 
-        ws.onclose = () => {
+        eventSource.onerror = () => {
           setIsConnected(false)
-          terminal.write('\r\n\x1b[31mTerminal connection closed. Please refresh to reconnect.\x1b[0m\r\n')
-        }
-
-        ws.onerror = () => {
-          setIsConnected(false)
-          terminal.write('\r\n\x1b[31mFailed to connect to terminal. Starting local session...\x1b[0m\r\n')
-          startLocalTerminal(terminal)
+          eventSource.close()
+          terminal.write('\r\n\x1b[31mTerminal connection lost. Please refresh to reconnect.\x1b[0m\r\n')
         }
 
       } catch (error) {
-        console.error('Failed to create WebSocket connection:', error)
+        console.error('Failed to create EventSource connection:', error)
         setIsConnected(false)
-        startLocalTerminal(terminal)
+        terminal.write('\r\n\x1b[31mFailed to connect to terminal backend.\x1b[0m\r\n')
       }
     }
 
-    // Fallback to local terminal simulation
-    const startLocalTerminal = (term: Terminal) => {
-      const prompt = `\x1b[32m➜\x1b[0m \x1b[36m${workingDirectory?.split('/').pop() || '~'}\x1b[0m `
-      term.write(`\r\nWelcome to MacTerminal\r\n`)
-      term.write(`${prompt}`)
-      
-      let currentLine = ''
-      
-      term.onKey(({ key, domEvent }) => {
-        if (domEvent.keyCode === 13) { // Enter
-          term.write(`\r\n`)
-          
-          if (currentLine.trim()) {
-            // Simple command simulation
-            simulateCommand(term, currentLine.trim(), workingDirectory)
-          }
-          
-          currentLine = ''
-          term.write(`${prompt}`)
-        } else if (domEvent.keyCode === 8) { // Backspace
-          if (currentLine.length > 0) {
-            currentLine = currentLine.slice(0, -1)
-            term.write('\b \b')
-          }
-        } else if (domEvent.keyCode === 9) { // Tab
-          // Tab completion could be implemented here
-          domEvent.preventDefault()
-        } else if (key.length === 1) {
-          currentLine += key
-          term.write(key)
-        }
-      })
+    // Send input to terminal
+    const sendInput = async (data: string) => {
+      try {
+        await fetch('/api/terminal', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            sessionId,
+            input: data
+          })
+        })
+      } catch (error) {
+        console.error('Failed to send input to terminal:', error)
+      }
     }
+
+    // Send resize command to terminal
+    const resizeTerminal = async (cols: number, rows: number) => {
+      try {
+        await fetch('/api/terminal', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            sessionId,
+            cols,
+            rows
+          })
+        })
+      } catch (error) {
+        console.error('Failed to resize terminal:', error)
+      }
+    }
+
 
     // Handle input from terminal
     terminal.onData((data) => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: 'input', data }))
+      if (isConnected) {
+        sendInput(data)
       }
     })
 
-    // Try to connect to WebSocket, fallback to local
+    // Connect to terminal
     connectToTerminal()
 
     // Handle resize
@@ -167,12 +170,8 @@ export function MacTerminal({ workingDirectory, className = '' }: MacTerminalPro
       if (fitAddon) {
         fitAddon.fit()
         
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          wsRef.current.send(JSON.stringify({
-            type: 'resize',
-            cols: terminal.cols,
-            rows: terminal.rows
-          }))
+        if (isConnected) {
+          resizeTerminal(terminal.cols, terminal.rows)
         }
       }
     }
@@ -181,58 +180,28 @@ export function MacTerminal({ workingDirectory, className = '' }: MacTerminalPro
 
     return () => {
       window.removeEventListener('resize', handleResize)
-      if (wsRef.current) {
-        wsRef.current.close()
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
       }
       terminal.dispose()
     }
-  }, [workingDirectory])
-
-  // Simple command simulation for fallback
-  const simulateCommand = (term: Terminal, command: string, cwd?: string) => {
-    const cmd = command.toLowerCase().trim()
-    
-    switch (cmd) {
-      case 'ls':
-      case 'll':
-        term.write(`total 8\r\n`)
-        term.write(`drwxr-xr-x  3 user  staff   96 Jan  1 12:00 \x1b[34mnode_modules\x1b[0m\r\n`)
-        term.write(`-rw-r--r--  1 user  staff  123 Jan  1 12:00 package.json\r\n`)
-        term.write(`-rw-r--r--  1 user  staff   45 Jan  1 12:00 README.md\r\n`)
-        term.write(`drwxr-xr-x  3 user  staff   96 Jan  1 12:00 \x1b[34msrc\x1b[0m\r\n`)
-        break
-      case 'pwd':
-        term.write(`${cwd || '/Users/user/project'}\r\n`)
-        break
-      case 'whoami':
-        term.write(`${process.env.USER || 'user'}\r\n`)
-        break
-      case 'date':
-        term.write(`${new Date().toString()}\r\n`)
-        break
-      case 'clear':
-        term.clear()
-        break
-      case '':
-        break
-      default:
-        if (cmd.startsWith('cd ')) {
-          term.write(`\r\n`) // Just acknowledge cd for now
-        } else if (cmd.startsWith('echo ')) {
-          term.write(`${command.slice(5)}\r\n`)
-        } else {
-          term.write(`zsh: command not found: ${command}\r\n`)
-        }
-        break
-    }
-  }
+  }, [workingDirectory, sessionId, isConnected])
 
   return (
     <div className={`h-full w-full ${className}`}>
       {!isConnected && (
         <div className="absolute top-2 right-2 z-10">
-          <div className="bg-yellow-500 text-black text-xs px-2 py-1 rounded">
-            Local Mode
+          <div className="bg-orange-500 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            Connecting...
+          </div>
+        </div>
+      )}
+      {isConnected && (
+        <div className="absolute top-2 right-2 z-10">
+          <div className="bg-green-500 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+            <div className="w-2 h-2 bg-white rounded-full"></div>
+            Real Terminal
           </div>
         </div>
       )}

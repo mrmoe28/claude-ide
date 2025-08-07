@@ -1,34 +1,98 @@
 import { NextRequest } from 'next/server'
+import * as pty from 'node-pty'
+
+// Store terminal sessions
+const terminals = new Map<string, pty.IPty>()
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
+  const sessionId = searchParams.get('sessionId') || 'default'
   
-  // For WebSocket upgrade, we need to handle this differently in Next.js
-  // This is a placeholder - actual WebSocket implementation would need a custom server
-  
-  return new Response(JSON.stringify({ 
-    error: 'WebSocket terminal not available in this environment',
-    message: 'Terminal will run in local simulation mode'
-  }), {
+  // Get or create terminal session
+  let terminal = terminals.get(sessionId)
+  if (!terminal) {
+    // Determine shell based on platform
+    const shell = process.platform === 'win32' ? 'powershell.exe' : process.env.SHELL || '/bin/zsh'
+    
+    terminal = pty.spawn(shell, [], {
+      name: 'xterm-color',
+      cols: 80,
+      rows: 24,
+      cwd: process.env.HOME || process.cwd(),
+      env: process.env
+    })
+
+    terminals.set(sessionId, terminal)
+    
+    // Clean up on terminal exit
+    terminal.onExit(() => {
+      terminals.delete(sessionId)
+    })
+  }
+
+  // Create a readable stream for terminal output
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream({
+    start(controller) {
+      terminal.onData((data) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'output', data })}\n\n`))
+      })
+
+      // Send initial connection message
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'connected', sessionId })}\n\n`))
+
+      // Keep connection alive
+      const keepAlive = setInterval(() => {
+        controller.enqueue(encoder.encode(`: keepalive\n\n`))
+      }, 30000)
+
+      // Clean up on close
+      return () => {
+        clearInterval(keepAlive)
+      }
+    },
+  })
+
+  return new Response(stream, {
     status: 200,
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
     },
   })
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { command, cwd } = await request.json()
+    const { sessionId = 'default', input, cols, rows } = await request.json()
     
-    // In a real implementation, this would execute the command using node-pty
-    // For now, return a simulated response
-    
-    const simulatedOutput = getSimulatedOutput(command, cwd)
+    const terminal = terminals.get(sessionId)
+    if (!terminal) {
+      return new Response(JSON.stringify({
+        error: 'Terminal session not found',
+        message: 'Please refresh to create a new session'
+      }), {
+        status: 404,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+    }
+
+    if (input) {
+      // Send input to terminal
+      terminal.write(input)
+    }
+
+    if (cols && rows) {
+      // Resize terminal
+      terminal.resize(cols, rows)
+    }
     
     return new Response(JSON.stringify({
-      output: simulatedOutput,
-      exitCode: 0
+      success: true,
+      sessionId
     }), {
       status: 200,
       headers: {
@@ -36,43 +100,15 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
+    console.error('Terminal POST error:', error)
     return new Response(JSON.stringify({
-      error: 'Failed to execute command',
-      exitCode: 1
+      error: 'Failed to process terminal request',
+      message: error instanceof Error ? error.message : 'Unknown error'
     }), {
       status: 500,
       headers: {
         'Content-Type': 'application/json',
       },
     })
-  }
-}
-
-function getSimulatedOutput(command: string, cwd?: string): string {
-  const cmd = command.toLowerCase().trim()
-  
-  switch (cmd) {
-    case 'ls':
-    case 'll':
-      return `total 8
-drwxr-xr-x  3 user  staff   96 Jan  1 12:00 node_modules
--rw-r--r--  1 user  staff  123 Jan  1 12:00 package.json  
--rw-r--r--  1 user  staff   45 Jan  1 12:00 README.md
-drwxr-xr-x  3 user  staff   96 Jan  1 12:00 src`
-    
-    case 'pwd':
-      return cwd || '/Users/user/project'
-    
-    case 'whoami':
-      return process.env.USER || 'user'
-    
-    case 'date':
-      return new Date().toString()
-    
-    default:
-      if (cmd.startsWith('echo ')) {
-        return command.slice(5)
-      }
-      return `zsh: command not found: ${command}`
   }
 }
