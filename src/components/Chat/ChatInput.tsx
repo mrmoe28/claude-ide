@@ -6,9 +6,10 @@ import { Send, Paperclip } from 'lucide-react'
 interface ChatInputProps {
   onSendMessage: (message: string) => void
   disabled?: boolean
+  placeholder?: string
 }
 
-export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
+export function ChatInput({ onSendMessage, disabled = false, placeholder = "Ask Claude about your code..." }: ChatInputProps) {
   const [message, setMessage] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -48,7 +49,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask Claude about your code..."
+            placeholder={placeholder}
             disabled={disabled}
             className="w-full px-3 py-2 pr-10
                      bg-light-input dark:bg-dark-input

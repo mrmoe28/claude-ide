@@ -4,8 +4,7 @@ import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useFileSystem } from '@/hooks/useFileSystem'
 import { Header } from './Header'
-import { Sidebar } from '@/components/FileExplorer/Sidebar'
-import { ChatInterface } from '@/components/Chat/ChatInterface'
+import { WindowManager } from './WindowManager'
 
 export function MainLayout() {
   const { user, isLoading, isAuthenticated } = useAuth()
@@ -64,35 +63,12 @@ export function MainLayout() {
   return (
     <div className="h-screen flex flex-col bg-light-bg-primary dark:bg-dark-bg-primary">
       <Header />
-      
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - File Explorer */}
-        <div className="w-80 flex flex-col border-r border-light-border-primary dark:border-dark-border-primary">
-          <div className="p-4 border-b border-light-border-primary dark:border-dark-border-primary">
-            <h3 className="text-sm font-medium text-light-text-primary dark:text-dark-text-primary">
-              File Explorer
-            </h3>
-            <p className="text-xs text-light-text-muted dark:text-dark-text-muted mt-1">
-              Browse and edit files
-            </p>
-          </div>
-
-          <div className="flex-1 overflow-hidden">
-            <Sidebar
-              onFileSelect={handleFileSelect}
-              selectedFile={currentFile?.path}
-            />
-          </div>
-        </div>
-
-        {/* Main Content - Chat Interface */}
-        <div className="flex-1">
-          <ChatInterface
-            currentFile={currentFile}
-            repositoryContext={undefined}
-            workingDirectory={directoryName}
-          />
-        </div>
+      <div className="flex-1 overflow-hidden">
+        <WindowManager 
+          currentFile={currentFile}
+          onFileSelect={handleFileSelect}
+          workingDirectory={directoryName}
+        />
       </div>
     </div>
   )
