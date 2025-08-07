@@ -27,7 +27,7 @@ export function Header({
   const [userMenuOpen, setUserMenuOpen] = useState(false)
 
   return (
-    <header className="h-12 bg-light-bg-primary dark:bg-dark-bg-primary 
+    <header className="h-12 w-full bg-light-bg-primary dark:bg-dark-bg-primary 
                      border-b border-light-border-primary dark:border-dark-border-primary
                      flex items-center justify-between px-4">
       {/* Left Section - Logo and Window Toggles */}

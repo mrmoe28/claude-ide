@@ -65,7 +65,7 @@ export const EditorErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ c
 export const TerminalErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <ComponentErrorBoundary
     componentName="Terminal"
-    fallbackMessage="The terminal encountered an error. You can try refreshing to restore terminal functionality."
+    fallbackMessage="The terminal encountered an initialization error. This may be due to browser compatibility or timing issues. Please refresh the page to retry."
   >
     {children}
   </ComponentErrorBoundary>

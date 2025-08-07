@@ -65,7 +65,7 @@ export function MainLayout() {
 
   if (isLoading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-light-bg-primary dark:bg-dark-bg-primary">
+      <div className="w-screen h-screen flex items-center justify-center bg-light-bg-primary dark:bg-dark-bg-primary">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-light-accent-primary dark:border-dark-accent-primary mx-auto mb-4"></div>
           <p className="text-light-text-secondary dark:text-dark-text-secondary">Loading...</p>
@@ -76,7 +76,7 @@ export function MainLayout() {
 
   if (!isAuthenticated) {
     return (
-      <div className="h-screen flex items-center justify-center bg-light-bg-primary dark:bg-dark-bg-primary">
+      <div className="w-screen h-screen flex items-center justify-center bg-light-bg-primary dark:bg-dark-bg-primary">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-light-text-primary dark:text-dark-text-primary mb-4">
             Welcome to Claude Code IDE
@@ -99,7 +99,7 @@ export function MainLayout() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-light-bg-primary dark:bg-dark-bg-primary">
+    <div className="w-screen h-screen flex flex-col bg-light-bg-primary dark:bg-dark-bg-primary overflow-hidden">
       <Header 
         showSidebar={showSidebar}
         showTerminal={showTerminal}
@@ -108,7 +108,7 @@ export function MainLayout() {
         onToggleTerminal={() => setShowTerminal(!showTerminal)}
         onToggleChat={() => setShowChat(!showChat)}
       />
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 w-full overflow-hidden">
         <WindowManager 
           currentFile={currentFile}
           onFileSelect={handleFileSelect}

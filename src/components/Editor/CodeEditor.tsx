@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { FileIcon } from '@/components/FileExplorer/FileIcon'
+import { WelcomeScreen } from '@/components/Welcome/WelcomeScreen'
 
 const Editor = dynamic(
   () => import('@monaco-editor/react'),
@@ -22,9 +23,18 @@ interface CodeEditorProps {
     content: string
   }
   onFileChange?: (content: string) => void
+  workingDirectory?: string
+  onOpenFolder?: () => void
+  onNewFile?: () => void
 }
 
-export function CodeEditor({ file, onFileChange }: CodeEditorProps) {
+export function CodeEditor({ 
+  file, 
+  onFileChange, 
+  workingDirectory, 
+  onOpenFolder, 
+  onNewFile 
+}: CodeEditorProps) {
   const [content, setContent] = useState(file?.content || '')
   const [language, setLanguage] = useState('plaintext')
 
@@ -79,19 +89,11 @@ export function CodeEditor({ file, onFileChange }: CodeEditorProps) {
 
   if (!file) {
     return (
-      <div className="h-full flex items-center justify-center bg-light-bg-primary dark:bg-dark-bg-primary">
-        <div className="text-center">
-          <div className="text-6xl mb-4 text-light-text-muted dark:text-dark-text-muted">
-            📝
-          </div>
-          <h3 className="text-lg font-medium text-light-text-primary dark:text-dark-text-primary mb-2">
-            No file selected
-          </h3>
-          <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
-            Select a file from the explorer to start editing
-          </p>
-        </div>
-      </div>
+      <WelcomeScreen
+        workingDirectory={workingDirectory}
+        onOpenFolder={onOpenFolder}
+        onNewFile={onNewFile}
+      />
     )
   }
 

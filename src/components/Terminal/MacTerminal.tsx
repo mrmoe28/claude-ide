@@ -19,9 +19,33 @@ export function MacTerminal({ workingDirectory, className = '' }: MacTerminalPro
   const [isConnected, setIsConnected] = useState(false)
   const [sessionId] = useState(() => Math.random().toString(36).substring(7))
 
+  // Connection management
+  const connectionStateRef = useRef<{
+    isConnected: boolean
+    connectionId: string | null
+    reconnectAttempts: number
+    reconnectTimer: NodeJS.Timeout | null
+    eventSource: EventSource | null
+  }>({
+    isConnected: false,
+    connectionId: null,
+    reconnectAttempts: 0,
+    reconnectTimer: null,
+    eventSource: null
+  })
+
+  // Terminal initialization effect (runs once)
   useEffect(() => {
     // Only run on client side
-    if (typeof window === 'undefined' || !terminalRef.current) return
+    if (typeof window === 'undefined') return
+    
+    // Ensure terminal ref is ready
+    if (!terminalRef.current) {
+      console.warn('Terminal ref not ready, skipping initialization')
+      return
+    }
+
+    let isComponentMounted = true
 
     // Create terminal instance with Mac-like theme
     const terminal = new Terminal({
@@ -65,56 +89,27 @@ export function MacTerminal({ workingDirectory, className = '' }: MacTerminalPro
     terminal.loadAddon(fitAddon)
     terminal.loadAddon(webLinksAddon)
 
-    // Open terminal in the container
-    terminal.open(terminalRef.current)
-    
-    // Store references
-    xtermRef.current = terminal
-    fitAddonRef.current = fitAddon
+    // Open terminal in the container with safety checks
+    try {
+      terminal.open(terminalRef.current)
+      
+      // Store references only after successful open
+      xtermRef.current = terminal
+      fitAddonRef.current = fitAddon
 
-    // Fit terminal to container
-    fitAddon.fit()
-
-    // Connect to terminal streaming API
-    const connectToTerminal = () => {
-      try {
-        const eventSource = new EventSource(`/api/terminal?sessionId=${sessionId}`)
-        eventSourceRef.current = eventSource
-
-        eventSource.onopen = () => {
-          setIsConnected(true)
-          terminal.write('\r\n\x1b[32mConnected to real Mac terminal\x1b[0m\r\n')
-          
-          // Initialize terminal with working directory if provided
-          if (workingDirectory) {
-            sendInput(`cd "${workingDirectory}"\r`)
-          }
-        }
-
-        eventSource.onmessage = (event) => {
+      // Fit terminal to container with dimension check
+      setTimeout(() => {
+        if (isComponentMounted && fitAddon && terminal.element && terminal.element.offsetWidth > 0) {
           try {
-            const message = JSON.parse(event.data)
-            if (message.type === 'output') {
-              terminal.write(message.data)
-            } else if (message.type === 'connected') {
-              console.log('Terminal session connected:', message.sessionId)
-            }
+            fitAddon.fit()
           } catch (error) {
-            console.error('Failed to parse terminal message:', error)
+            console.warn('Failed to fit terminal on initial load:', error)
           }
         }
-
-        eventSource.onerror = () => {
-          setIsConnected(false)
-          eventSource.close()
-          terminal.write('\r\n\x1b[31mTerminal connection lost. Please refresh to reconnect.\x1b[0m\r\n')
-        }
-
-      } catch (error) {
-        console.error('Failed to create EventSource connection:', error)
-        setIsConnected(false)
-        terminal.write('\r\n\x1b[31mFailed to connect to terminal backend.\x1b[0m\r\n')
-      }
+      }, 100)
+    } catch (error) {
+      console.error('Failed to open terminal:', error)
+      return
     }
 
     // Send input to terminal
@@ -154,10 +149,83 @@ export function MacTerminal({ workingDirectory, className = '' }: MacTerminalPro
       }
     }
 
+    // Connect to terminal streaming API with reconnection logic
+    const connectToTerminal = () => {
+      const state = connectionStateRef.current
+      
+      // Clean up existing connection
+      if (state.eventSource) {
+        state.eventSource.close()
+        state.eventSource = null
+      }
+
+      try {
+        const eventSource = new EventSource(`/api/terminal?sessionId=${sessionId}`)
+        state.eventSource = eventSource
+        eventSourceRef.current = eventSource
+
+        eventSource.onopen = () => {
+          state.isConnected = true
+          state.reconnectAttempts = 0
+          setIsConnected(true)
+          terminal.write('\r\n\x1b[32mConnected to real Mac terminal\x1b[0m\r\n')
+          
+          // Initialize terminal with working directory if provided
+          if (workingDirectory) {
+            sendInput(`cd "${workingDirectory}"\r`)
+          }
+        }
+
+        eventSource.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data)
+            if (message.type === 'output') {
+              terminal.write(message.data)
+            } else if (message.type === 'connected') {
+              state.connectionId = message.connectionId
+              console.log('Terminal session connected:', message.sessionId, message.connectionId)
+            }
+          } catch (error) {
+            console.error('Failed to parse terminal message:', error)
+          }
+        }
+
+        eventSource.onerror = () => {
+          state.isConnected = false
+          setIsConnected(false)
+          eventSource.close()
+          state.eventSource = null
+          
+          terminal.write('\r\n\x1b[31mTerminal connection lost.\x1b[0m\r\n')
+          
+          // Attempt reconnection with exponential backoff
+          if (isComponentMounted && state.reconnectAttempts < 5) {
+            const delay = Math.min(1000 * Math.pow(2, state.reconnectAttempts), 30000)
+            state.reconnectAttempts++
+            
+            terminal.write(`\r\n\x1b[33mReconnecting in ${delay/1000}s... (attempt ${state.reconnectAttempts}/5)\x1b[0m\r\n`)
+            
+            state.reconnectTimer = setTimeout(() => {
+              if (isComponentMounted) {
+                connectToTerminal()
+              }
+            }, delay)
+          } else {
+            terminal.write('\r\n\x1b[31mMax reconnection attempts reached. Please refresh to reconnect.\x1b[0m\r\n')
+          }
+        }
+
+      } catch (error) {
+        console.error('Failed to create EventSource connection:', error)
+        connectionStateRef.current.isConnected = false
+        setIsConnected(false)
+        terminal.write('\r\n\x1b[31mFailed to connect to terminal backend.\x1b[0m\r\n')
+      }
+    }
 
     // Handle input from terminal
     terminal.onData((data) => {
-      if (isConnected) {
+      if (connectionStateRef.current.isConnected) {
         sendInput(data)
       }
     })
@@ -165,27 +233,69 @@ export function MacTerminal({ workingDirectory, className = '' }: MacTerminalPro
     // Connect to terminal
     connectToTerminal()
 
-    // Handle resize
+    // Handle resize with proper checks and debouncing
+    let resizeTimeout: NodeJS.Timeout | null = null
     const handleResize = () => {
-      if (fitAddon) {
-        fitAddon.fit()
-        
-        if (isConnected) {
-          resizeTerminal(terminal.cols, terminal.rows)
-        }
+      if (!isComponentMounted) return
+      
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout)
       }
+      
+      resizeTimeout = setTimeout(() => {
+        if (fitAddon && terminal.element && terminal.element.offsetWidth > 0) {
+          try {
+            fitAddon.fit()
+            
+            if (connectionStateRef.current.isConnected) {
+              resizeTerminal(terminal.cols, terminal.rows)
+            }
+          } catch (error) {
+            console.warn('Failed to resize terminal:', error)
+          }
+        }
+      }, 100)
     }
 
     window.addEventListener('resize', handleResize)
 
     return () => {
+      isComponentMounted = false
+      const state = connectionStateRef.current
+      
       window.removeEventListener('resize', handleResize)
+      
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout)
+      }
+      
+      if (state.reconnectTimer) {
+        clearTimeout(state.reconnectTimer)
+        state.reconnectTimer = null
+      }
+      
+      if (state.eventSource) {
+        state.eventSource.close()
+        state.eventSource = null
+      }
+      
       if (eventSourceRef.current) {
         eventSourceRef.current.close()
+        eventSourceRef.current = null
       }
-      terminal.dispose()
+      
+      if (terminal) {
+        try {
+          terminal.dispose()
+        } catch (error) {
+          console.warn('Error disposing terminal:', error)
+        }
+      }
+      
+      xtermRef.current = null
+      fitAddonRef.current = null
     }
-  }, [workingDirectory, sessionId, isConnected])
+  }, [workingDirectory, sessionId]) // Removed isConnected from dependencies
 
   return (
     <div className={`h-full w-full ${className}`}>

@@ -2,22 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Global styles */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* Minimal CSS Reset - Only target root elements, let Tailwind handle components */
+@layer base {
+  /* Basic reset without breaking Tailwind classes */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  /* Root elements only - no positioning overrides */
+  html {
+    height: 100vh;
+    height: 100dvh;
+    width: 100vw;
+    width: 100dvw;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    height: 100dvh;
+    width: 100vw;
+    width: 100dvw;
+    overflow: hidden;
+    font-family: 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    transition: background-color 200ms ease-in-out, color 200ms ease-in-out;
+  }
+
+  /* Next.js root container - minimal styling */
+  #__next {
+    height: 100vh;
+    height: 100dvh;
+    width: 100vw;
+    width: 100dvw;
+    margin: 0;
+    padding: 0;
+  }
 }
 
-html {
-  height: 100%;
-}
-
+/* Light theme */
 body {
-  font-family: 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
-  height: 100%;
-  overflow: hidden;
-  transition: background-color 200ms ease-in-out, color 200ms ease-in-out;
+  background-color: #ffffff;
+  color: #333333;
+}
+
+/* Dark theme */
+.dark body {
+  background-color: #1e1e1e;
+  color: #cccccc;
 }
 
 /* Light theme */

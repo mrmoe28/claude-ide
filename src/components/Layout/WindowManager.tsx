@@ -74,22 +74,26 @@ export function WindowManager({
   const toggleTerminal = onToggleTerminal || (() => setInternalShowTerminal(!showTerminal))
   const toggleChat = onToggleChat || (() => setInternalShowChat(!showChat))
 
-  // Calculate center panel size based on visible panels
+  // Calculate center panel size based on visible panels and content state
   const getCenterPanelSize = () => {
+    const hasFile = !!currentFile
+    
     if (!showSidebar && !showChat) return 100
-    if (!showSidebar) return 75
-    if (!showChat) return 75
-    return 55
+    if (!showSidebar) return hasFile ? 75 : 70
+    if (!showChat) return hasFile ? 80 : 75
+    
+    // When no file is selected, give more space to side panels for better balance
+    return hasFile ? 60 : 50
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full w-full flex flex-col">
       {/* Main Content Area */}
-      <PanelGroup direction="horizontal" className="flex-1">
+      <PanelGroup direction="horizontal" className="flex-1 w-full">
         {/* Left Panel - File Explorer */}
         {showSidebar && (
           <>
-            <Panel defaultSize={20} minSize={15} maxSize={35}>
+            <Panel defaultSize={15} minSize={10} maxSize={30}>
               <div className="h-full border-r border-light-border-primary dark:border-dark-border-primary">
                 <div className="flex items-center justify-between p-2 border-b border-light-border-primary dark:border-dark-border-primary bg-light-bg-secondary dark:bg-dark-bg-secondary">
                   <h3 className="text-xs font-medium text-light-text-primary dark:text-dark-text-primary">
@@ -156,6 +160,7 @@ export function WindowManager({
                   <EditorErrorBoundary>
                     <CodeEditor 
                       file={currentFile}
+                      workingDirectory={workingDirectory}
                       onFileChange={(content) => {
                         if (currentFile) {
                           onFileSelect(currentFile.path, content)
@@ -204,6 +209,7 @@ export function WindowManager({
               <EditorErrorBoundary>
                 <CodeEditor 
                   file={currentFile}
+                  workingDirectory={workingDirectory}
                   onFileChange={(content) => {
                     if (currentFile) {
                       onFileSelect(currentFile.path, content)
@@ -219,7 +225,7 @@ export function WindowManager({
         {showChat && (
           <>
             <PanelResizeHandle className="w-1 bg-light-border-primary dark:bg-dark-border-primary hover:bg-blue-500 transition-colors" />
-            <Panel defaultSize={25} minSize={20} maxSize={40}>
+            <Panel defaultSize={25} minSize={15} maxSize={40}>
               <div className="h-full border-l border-light-border-primary dark:border-dark-border-primary">
                 <div className="flex items-center justify-between p-2 border-b border-light-border-primary dark:border-dark-border-primary bg-light-bg-secondary dark:bg-dark-bg-secondary">
                   <h3 className="text-xs font-medium text-light-text-primary dark:text-dark-text-primary">

@@ -4,6 +4,9 @@ import * as pty from 'node-pty'
 // Store terminal sessions
 const terminals = new Map<string, pty.IPty>()
 
+// Store active connections for proper cleanup
+const activeConnections = new Map<string, Set<() => void>>()
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const sessionId = searchParams.get('sessionId') || 'default'
@@ -27,56 +30,129 @@ export async function GET(request: NextRequest) {
     // Clean up on terminal exit
     terminal.onExit(() => {
       terminals.delete(sessionId)
+      // Clean up all connections for this session
+      const connections = activeConnections.get(sessionId)
+      if (connections) {
+        connections.forEach(cleanup => cleanup())
+        activeConnections.delete(sessionId)
+      }
     })
   }
+
+  // Create connection ID for this specific stream
+  const connectionId = `${sessionId}-${Date.now()}-${Math.random()}`
 
   // Create a readable stream for terminal output
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     start(controller) {
-      // Store controller reference for proper cleanup
-      let isClosed = false
+      // Atomic state management
+      const state = {
+        closed: false,
+        controller,
+        keepAliveInterval: null as NodeJS.Timeout | null,
+        dataListener: null as ((data: string) => void) | null
+      }
       
-      const dataHandler = (data: string) => {
-        if (!isClosed) {
-          try {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'output', data })}\n\n`))
-          } catch (error) {
-            console.error('Terminal stream error:', error)
-            isClosed = true
+      const safeEnqueue = (data: Uint8Array): boolean => {
+        // Double-check state atomically
+        if (state.closed) return false
+        
+        try {
+          // Verify controller is still writable
+          if (controller.desiredSize === null) {
+            // Controller is closed, mark state and return
+            state.closed = true
+            return false
+          }
+          
+          controller.enqueue(data)
+          return true
+        } catch (error) {
+          console.error('Terminal stream controller error:', error)
+          cleanup()
+          return false
+        }
+      }
+      
+      const cleanup = () => {
+        // Atomic cleanup to prevent double-close
+        if (state.closed) return
+        state.closed = true
+        
+        // Clear interval first
+        if (state.keepAliveInterval) {
+          clearInterval(state.keepAliveInterval)
+          state.keepAliveInterval = null
+        }
+        
+        // Remove data listener
+        if (state.dataListener && terminal) {
+          terminal.removeListener('data', state.dataListener)
+          state.dataListener = null
+        }
+        
+        // Close controller safely
+        try {
+          if (controller.desiredSize !== null) {
+            controller.close()
+          }
+        } catch (e) {
+          // Controller already closed or in invalid state
+        }
+        
+        // Remove from active connections
+        const connections = activeConnections.get(sessionId)
+        if (connections) {
+          connections.delete(cleanup)
+          if (connections.size === 0) {
+            activeConnections.delete(sessionId)
           }
         }
       }
       
-      terminal.onData(dataHandler)
+      // Register cleanup for this connection
+      if (!activeConnections.has(sessionId)) {
+        activeConnections.set(sessionId, new Set())
+      }
+      activeConnections.get(sessionId)!.add(cleanup)
+      
+      // Setup data listener with error handling
+      state.dataListener = (data: string) => {
+        // Check if connection is still valid before enqueueing
+        if (!state.closed) {
+          safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: 'output', data })}\n\n`))
+        }
+      }
+      
+      terminal.onData(state.dataListener)
 
       // Send initial connection message
-      if (!isClosed) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'connected', sessionId })}\n\n`))
+      if (!safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: 'connected', sessionId, connectionId })}\n\n`))) {
+        cleanup()
+        return cleanup
       }
 
-      // Keep connection alive
-      const keepAlive = setInterval(() => {
-        if (!isClosed) {
-          try {
-            controller.enqueue(encoder.encode(`: keepalive\n\n`))
-          } catch (error) {
-            clearInterval(keepAlive)
-            isClosed = true
+      // Keep connection alive with connection validation
+      state.keepAliveInterval = setInterval(() => {
+        if (!state.closed) {
+          if (!safeEnqueue(encoder.encode(`: keepalive ${Date.now()}\n\n`))) {
+            cleanup()
+          }
+        } else {
+          // Clear interval if connection is closed
+          if (state.keepAliveInterval) {
+            clearInterval(state.keepAliveInterval)
+            state.keepAliveInterval = null
           }
         }
-      }, 30000)
+      }, 30000) // Reduced to 30 seconds for better responsiveness
 
-      // Clean up on close
-      return () => {
-        isClosed = true
-        clearInterval(keepAlive)
-        // Note: terminal.onData cleanup is handled by the terminal instance itself
-      }
+      // Return cleanup function
+      return cleanup
     },
     cancel() {
-      // Stream was cancelled/closed
-      console.log('Terminal stream cancelled')
+      console.log(`Terminal stream cancelled for session: ${sessionId}`)
     }
   })
 
