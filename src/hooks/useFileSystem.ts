@@ -24,7 +24,7 @@ export function useFileSystem() {
   const [error, setError] = useState<string | null>(null)
 
   const isFileSystemSupported = useCallback(() => {
-    return 'showDirectoryPicker' in window
+    return typeof window !== 'undefined' && 'showDirectoryPicker' in window
   }, [])
 
   const selectDirectory = useCallback(async () => {
@@ -36,9 +36,11 @@ export function useFileSystem() {
         throw new Error('File System Access API is not supported in this browser. Please use Chrome, Edge, or another Chromium-based browser.')
       }
 
-      const dirHandle = await (window as any).showDirectoryPicker({
-        mode: 'readwrite'
-      })
+      if (typeof window === 'undefined') {
+        throw new Error('Window is not available')
+      }
+
+      const dirHandle = await (window as any).showDirectoryPicker()
 
       setSelectedDirectory(dirHandle)
       setDirectoryName(dirHandle.name)

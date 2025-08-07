@@ -2,12 +2,14 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
+import { useFileSystem } from '@/hooks/useFileSystem'
 import { Header } from './Header'
 import { Sidebar } from '@/components/FileExplorer/Sidebar'
 import { ChatInterface } from '@/components/Chat/ChatInterface'
 
 export function MainLayout() {
   const { user, isLoading, isAuthenticated } = useAuth()
+  const { directoryName } = useFileSystem()
   const [currentFile, setCurrentFile] = useState<{ path: string; content: string } | undefined>()
 
   const handleFileSelect = (path: string, content: string) => {
@@ -88,6 +90,7 @@ export function MainLayout() {
           <ChatInterface
             currentFile={currentFile}
             repositoryContext={undefined}
+            workingDirectory={directoryName}
           />
         </div>
       </div>
