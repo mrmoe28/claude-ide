@@ -27,42 +27,84 @@ interface WindowManagerProps {
   }
   onFileSelect: (path: string, content: string) => void
   workingDirectory?: string
+  showSidebar?: boolean
+  showTerminal?: boolean
+  showChat?: boolean
+  onToggleSidebar?: () => void
+  onToggleTerminal?: () => void
+  onToggleChat?: () => void
 }
 
-export function WindowManager({ currentFile, onFileSelect, workingDirectory }: WindowManagerProps) {
-  const [showTerminal, setShowTerminal] = useState(false)
-  const [showChat, setShowChat] = useState(true)
+export function WindowManager({ 
+  currentFile, 
+  onFileSelect, 
+  workingDirectory,
+  showSidebar: propShowSidebar,
+  showTerminal: propShowTerminal,
+  showChat: propShowChat,
+  onToggleSidebar,
+  onToggleTerminal,
+  onToggleChat
+}: WindowManagerProps) {
+  // Use props if provided, otherwise use internal state
+  const [internalShowSidebar, setInternalShowSidebar] = useState(true)
+  const [internalShowTerminal, setInternalShowTerminal] = useState(false)
+  const [internalShowChat, setInternalShowChat] = useState(true)
+  
+  const showSidebar = propShowSidebar !== undefined ? propShowSidebar : internalShowSidebar
+  const showTerminal = propShowTerminal !== undefined ? propShowTerminal : internalShowTerminal
+  const showChat = propShowChat !== undefined ? propShowChat : internalShowChat
+  
   const [terminalMinimized, setTerminalMinimized] = useState(false)
   const [chatMinimized, setChatMinimized] = useState(false)
+
+  const toggleSidebar = onToggleSidebar || (() => setInternalShowSidebar(!showSidebar))
+  const toggleTerminal = onToggleTerminal || (() => setInternalShowTerminal(!showTerminal))
+  const toggleChat = onToggleChat || (() => setInternalShowChat(!showChat))
+
+  // Calculate center panel size based on visible panels
+  const getCenterPanelSize = () => {
+    if (!showSidebar && !showChat) return 100
+    if (!showSidebar) return 75
+    if (!showChat) return 75
+    return 55
+  }
 
   return (
     <div className="h-full flex flex-col">
       {/* Main Content Area */}
       <PanelGroup direction="horizontal" className="flex-1">
         {/* Left Panel - File Explorer */}
-        <Panel defaultSize={20} minSize={15} maxSize={35}>
-          <div className="h-full border-r border-light-border-primary dark:border-dark-border-primary">
-            <div className="flex items-center justify-between p-2 border-b border-light-border-primary dark:border-dark-border-primary bg-light-bg-secondary dark:bg-dark-bg-secondary">
-              <h3 className="text-xs font-medium text-light-text-primary dark:text-dark-text-primary">
-                EXPLORER
-              </h3>
-              <div className="flex items-center gap-1">
-                <button className="p-1 rounded hover:bg-light-bg-tertiary dark:hover:bg-dark-bg-tertiary">
-                  <Minimize2 size={12} className="text-light-text-muted dark:text-dark-text-muted" />
-                </button>
+        {showSidebar && (
+          <>
+            <Panel defaultSize={20} minSize={15} maxSize={35}>
+              <div className="h-full border-r border-light-border-primary dark:border-dark-border-primary">
+                <div className="flex items-center justify-between p-2 border-b border-light-border-primary dark:border-dark-border-primary bg-light-bg-secondary dark:bg-dark-bg-secondary">
+                  <h3 className="text-xs font-medium text-light-text-primary dark:text-dark-text-primary">
+                    EXPLORER
+                  </h3>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={toggleSidebar}
+                      className="p-1 rounded hover:bg-light-bg-tertiary dark:hover:bg-dark-bg-tertiary"
+                      title="Hide Sidebar"
+                    >
+                      <X size={12} className="text-light-text-muted dark:text-dark-text-muted" />
+                    </button>
+                  </div>
+                </div>
+                <Sidebar
+                  onFileSelect={onFileSelect}
+                  selectedFile={currentFile?.path}
+                />
               </div>
-            </div>
-            <Sidebar
-              onFileSelect={onFileSelect}
-              selectedFile={currentFile?.path}
-            />
-          </div>
-        </Panel>
-
-        <PanelResizeHandle className="w-1 bg-light-border-primary dark:bg-dark-border-primary hover:bg-blue-500 transition-colors" />
+            </Panel>
+            <PanelResizeHandle className="w-1 bg-light-border-primary dark:bg-dark-border-primary hover:bg-blue-500 transition-colors" />
+          </>
+        )}
 
         {/* Center Panel - Code Editor */}
-        <Panel defaultSize={showChat ? 55 : 75} minSize={30}>
+        <Panel defaultSize={getCenterPanelSize()} minSize={30}>
           <div className="h-full">
             <div className="flex items-center justify-between p-2 border-b border-light-border-primary dark:border-dark-border-primary bg-light-bg-secondary dark:bg-dark-bg-secondary">
               <div className="flex items-center gap-2">
@@ -72,7 +114,7 @@ export function WindowManager({ currentFile, onFileSelect, workingDirectory }: W
               </div>
               <div className="flex items-center gap-1">
                 <button 
-                  onClick={() => setShowTerminal(!showTerminal)}
+                  onClick={toggleTerminal}
                   className={`p-1 rounded hover:bg-light-bg-tertiary dark:hover:bg-dark-bg-tertiary ${
                     showTerminal ? 'bg-blue-100 dark:bg-blue-900' : ''
                   }`}
@@ -81,7 +123,7 @@ export function WindowManager({ currentFile, onFileSelect, workingDirectory }: W
                   <TerminalIcon size={14} className="text-light-text-muted dark:text-dark-text-muted" />
                 </button>
                 <button 
-                  onClick={() => setShowChat(!showChat)}
+                  onClick={toggleChat}
                   className={`p-1 rounded hover:bg-light-bg-tertiary dark:hover:bg-dark-bg-tertiary ${
                     showChat ? 'bg-blue-100 dark:bg-blue-900' : ''
                   }`}
@@ -125,7 +167,7 @@ export function WindowManager({ currentFile, onFileSelect, workingDirectory }: W
                           )}
                         </button>
                         <button 
-                          onClick={() => setShowTerminal(false)}
+                          onClick={toggleTerminal}
                           className="p-1 rounded hover:bg-light-bg-tertiary dark:hover:bg-dark-bg-tertiary"
                         >
                           <X size={12} className="text-light-text-muted dark:text-dark-text-muted" />
@@ -173,7 +215,7 @@ export function WindowManager({ currentFile, onFileSelect, workingDirectory }: W
                       )}
                     </button>
                     <button 
-                      onClick={() => setShowChat(false)}
+                      onClick={toggleChat}
                       className="p-1 rounded hover:bg-light-bg-tertiary dark:hover:bg-dark-bg-tertiary"
                     >
                       <X size={12} className="text-light-text-muted dark:text-dark-text-muted" />

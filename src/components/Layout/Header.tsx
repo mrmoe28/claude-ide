@@ -2,10 +2,26 @@
 
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/contexts/ThemeContext'
-import { Sun, Moon, LogOut, User, Settings } from 'lucide-react'
+import { Sun, Moon, LogOut, User, Settings, Sidebar, MessageSquare, Terminal } from 'lucide-react'
 import { useState } from 'react'
 
-export function Header() {
+interface HeaderProps {
+  showSidebar?: boolean
+  showTerminal?: boolean
+  showChat?: boolean
+  onToggleSidebar?: () => void
+  onToggleTerminal?: () => void
+  onToggleChat?: () => void
+}
+
+export function Header({ 
+  showSidebar = true, 
+  showTerminal = false, 
+  showChat = true,
+  onToggleSidebar,
+  onToggleTerminal,
+  onToggleChat
+}: HeaderProps) {
   const { user, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -14,14 +30,50 @@ export function Header() {
     <header className="h-12 bg-light-bg-primary dark:bg-dark-bg-primary 
                      border-b border-light-border-primary dark:border-dark-border-primary
                      flex items-center justify-between px-4">
-      {/* Logo */}
-      <div className="flex items-center gap-2">
-        <div className="w-6 h-6 bg-light-accent-primary dark:bg-dark-accent-primary rounded-sm flex items-center justify-center">
-          <span className="text-white text-sm font-bold">C</span>
+      {/* Left Section - Logo and Window Toggles */}
+      <div className="flex items-center gap-4">
+        {/* Logo */}
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-light-accent-primary dark:bg-dark-accent-primary rounded-sm flex items-center justify-center">
+            <span className="text-white text-sm font-bold">C</span>
+          </div>
+          <h1 className="font-semibold text-light-text-primary dark:text-dark-text-primary">
+            Claude Code IDE
+          </h1>
         </div>
-        <h1 className="font-semibold text-light-text-primary dark:text-dark-text-primary">
-          Claude Code IDE
-        </h1>
+
+        {/* Window Toggle Controls */}
+        <div className="flex items-center gap-1 ml-4">
+          <button
+            onClick={onToggleSidebar}
+            className={`p-1.5 rounded hover:bg-light-bg-secondary dark:hover:bg-dark-bg-secondary transition-colors ${
+              showSidebar ? 'bg-blue-100 dark:bg-blue-900' : ''
+            }`}
+            title="Toggle File Explorer (⌘B)"
+          >
+            <Sidebar size={16} className="text-light-text-muted dark:text-dark-text-muted" />
+          </button>
+          
+          <button
+            onClick={onToggleTerminal}
+            className={`p-1.5 rounded hover:bg-light-bg-secondary dark:hover:bg-dark-bg-secondary transition-colors ${
+              showTerminal ? 'bg-blue-100 dark:bg-blue-900' : ''
+            }`}
+            title="Toggle Terminal (⌘J)"
+          >
+            <Terminal size={16} className="text-light-text-muted dark:text-dark-text-muted" />
+          </button>
+          
+          <button
+            onClick={onToggleChat}
+            className={`p-1.5 rounded hover:bg-light-bg-secondary dark:hover:bg-dark-bg-secondary transition-colors ${
+              showChat ? 'bg-blue-100 dark:bg-blue-900' : ''
+            }`}
+            title="Toggle AI Assistant (⌘⇧C)"
+          >
+            <MessageSquare size={16} className="text-light-text-muted dark:text-dark-text-muted" />
+          </button>
+        </div>
       </div>
 
       {/* Right Section */}

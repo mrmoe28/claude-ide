@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useFileSystem } from '@/hooks/useFileSystem'
 import { Header } from './Header'
@@ -10,6 +10,11 @@ export function MainLayout() {
   const { user, isLoading, isAuthenticated } = useAuth()
   const { directoryName } = useFileSystem()
   const [currentFile, setCurrentFile] = useState<{ path: string; content: string } | undefined>()
+  
+  // Window management state
+  const [showSidebar, setShowSidebar] = useState(true)
+  const [showTerminal, setShowTerminal] = useState(false)
+  const [showChat, setShowChat] = useState(true)
 
   const handleFileSelect = (path: string, content: string) => {
     // Decode base64 content if it's encoded (from old GitHub API format)
@@ -24,6 +29,39 @@ export function MainLayout() {
     
     setCurrentFile({ path, content: decodedContent })
   }
+
+  // Keyboard shortcuts for window toggles
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Check for Mac (metaKey) or Windows/Linux (ctrlKey)
+      const isModifierPressed = event.metaKey || event.ctrlKey
+
+      if (!isModifierPressed) return
+
+      switch (event.code) {
+        case 'KeyB':
+          // Cmd/Ctrl + B: Toggle File Explorer
+          event.preventDefault()
+          setShowSidebar(prev => !prev)
+          break
+        case 'KeyJ':
+          // Cmd/Ctrl + J: Toggle Terminal
+          event.preventDefault()
+          setShowTerminal(prev => !prev)
+          break
+        case 'KeyC':
+          // Cmd/Ctrl + Shift + C: Toggle Chat
+          if (event.shiftKey) {
+            event.preventDefault()
+            setShowChat(prev => !prev)
+          }
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   if (isLoading) {
     return (
@@ -62,12 +100,25 @@ export function MainLayout() {
 
   return (
     <div className="h-screen flex flex-col bg-light-bg-primary dark:bg-dark-bg-primary">
-      <Header />
+      <Header 
+        showSidebar={showSidebar}
+        showTerminal={showTerminal}
+        showChat={showChat}
+        onToggleSidebar={() => setShowSidebar(!showSidebar)}
+        onToggleTerminal={() => setShowTerminal(!showTerminal)}
+        onToggleChat={() => setShowChat(!showChat)}
+      />
       <div className="flex-1 overflow-hidden">
         <WindowManager 
           currentFile={currentFile}
           onFileSelect={handleFileSelect}
           workingDirectory={directoryName}
+          showSidebar={showSidebar}
+          showTerminal={showTerminal}
+          showChat={showChat}
+          onToggleSidebar={() => setShowSidebar(!showSidebar)}
+          onToggleTerminal={() => setShowTerminal(!showTerminal)}
+          onToggleChat={() => setShowChat(!showChat)}
         />
       </div>
     </div>
