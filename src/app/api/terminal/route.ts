@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         closed: false,
         controller,
         keepAliveInterval: null as NodeJS.Timeout | null,
-        dataListener: null as ((data: string) => void) | null
+        dataDisposable: null as { dispose(): void } | null
       }
       
       const safeEnqueue = (data: Uint8Array): boolean => {
@@ -86,10 +86,10 @@ export async function GET(request: NextRequest) {
           state.keepAliveInterval = null
         }
         
-        // Remove data listener
-        if (state.dataListener && terminal) {
-          terminal.removeListener('data', state.dataListener)
-          state.dataListener = null
+        // Dispose data listener
+        if (state.dataDisposable) {
+          state.dataDisposable.dispose()
+          state.dataDisposable = null
         }
         
         // Close controller safely
@@ -118,14 +118,14 @@ export async function GET(request: NextRequest) {
       activeConnections.get(sessionId)!.add(cleanup)
       
       // Setup data listener with error handling
-      state.dataListener = (data: string) => {
+      const dataListener = (data: string) => {
         // Check if connection is still valid before enqueueing
         if (!state.closed) {
           safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: 'output', data })}\n\n`))
         }
       }
       
-      terminal.onData(state.dataListener)
+      state.dataDisposable = terminal.onData(dataListener)
 
       // Send initial connection message
       if (!safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: 'connected', sessionId, connectionId })}\n\n`))) {
