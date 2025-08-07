@@ -18,12 +18,12 @@ export interface GitHubRepository {
 export interface GitHubContent {
   name: string
   path: string
-  sha: string
-  size: number
-  url: string
-  html_url: string | null
-  git_url: string | null
-  download_url: string | null
+  sha?: string
+  size?: number
+  url?: string
+  html_url?: string | null
+  git_url?: string | null
+  download_url?: string | null
   type: 'file' | 'dir' | 'submodule' | 'symlink'
 }
 

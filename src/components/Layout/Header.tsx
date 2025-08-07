@@ -1,13 +1,12 @@
 'use client'
 
-import { useSession, signOut } from 'next-auth/react'
+import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/contexts/ThemeContext'
 import { Sun, Moon, LogOut, User, Settings } from 'lucide-react'
 import { useState } from 'react'
-import Image from 'next/image'
 
 export function Header() {
-  const { data: session } = useSession()
+  const { user, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
 
@@ -40,7 +39,7 @@ export function Header() {
         </button>
 
         {/* User Menu */}
-        {session?.user ? (
+        {user ? (
           <div className="relative">
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -49,22 +48,12 @@ export function Header() {
                        text-light-text-primary dark:text-dark-text-primary
                        transition-colors duration-150"
             >
-              {session.user.image ? (
-                <Image
-                  src={session.user.image}
-                  alt={session.user.name || 'User'}
-                  width={24}
-                  height={24}
-                  className="w-6 h-6 rounded-full"
-                />
-              ) : (
-                <div className="w-6 h-6 bg-light-accent-primary dark:bg-dark-accent-primary 
-                              rounded-full flex items-center justify-center">
-                  <User size={14} className="text-white" />
-                </div>
-              )}
+              <div className="w-6 h-6 bg-light-accent-primary dark:bg-dark-accent-primary 
+                            rounded-full flex items-center justify-center">
+                <User size={14} className="text-white" />
+              </div>
               <span className="text-sm font-medium hidden sm:block">
-                {session.user.name || session.user.email}
+                {user.username}
               </span>
             </button>
 
@@ -77,10 +66,10 @@ export function Header() {
                               rounded-md shadow-lg py-1">
                   <div className="px-3 py-2 border-b border-light-border-primary dark:border-dark-border-primary">
                     <p className="text-sm font-medium text-light-text-primary dark:text-dark-text-primary">
-                      {session.user.name}
+                      {user.username}
                     </p>
                     <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
-                      {session.user.email}
+                      Signed in {new Date(user.signedInAt).toLocaleDateString()}
                     </p>
                   </div>
 
@@ -101,7 +90,7 @@ export function Header() {
                   <button
                     onClick={() => {
                       setUserMenuOpen(false)
-                      signOut({ callbackUrl: '/' })
+                      signOut()
                     }}
                     className="w-full px-3 py-2 text-left text-sm
                              text-red-600 dark:text-red-400

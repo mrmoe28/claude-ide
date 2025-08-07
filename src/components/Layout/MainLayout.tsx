@@ -1,27 +1,31 @@
 'use client'
 
 import { useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useAuth } from '@/hooks/useAuth'
 import { Header } from './Header'
 import { Sidebar } from '@/components/FileExplorer/Sidebar'
 import { ChatInterface } from '@/components/Chat/ChatInterface'
-import { RepositorySelector } from '@/components/Repository/RepositorySelector'
 
 export function MainLayout() {
-  const { data: session } = useSession()
-  const [currentRepo, setCurrentRepo] = useState<{ owner: string; name: string } | undefined>()
+  const { user, isLoading, isAuthenticated } = useAuth()
   const [currentFile, setCurrentFile] = useState<{ path: string; content: string } | undefined>()
-
-  const handleRepositorySelect = (repo: { owner: string; name: string }) => {
-    setCurrentRepo(repo)
-    setCurrentFile(undefined) // Clear current file when switching repos
-  }
 
   const handleFileSelect = (path: string, content: string) => {
     setCurrentFile({ path, content })
   }
 
-  if (!session) {
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-light-bg-primary dark:bg-dark-bg-primary">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-light-accent-primary dark:border-dark-accent-primary mx-auto mb-4"></div>
+          <p className="text-light-text-secondary dark:text-dark-text-secondary">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
     return (
       <div className="h-screen flex items-center justify-center bg-light-bg-primary dark:bg-dark-bg-primary">
         <div className="text-center">
@@ -29,7 +33,7 @@ export function MainLayout() {
             Welcome to Claude Code IDE
           </h1>
           <p className="text-light-text-secondary dark:text-dark-text-secondary mb-6">
-            Please sign in with GitHub to get started
+            Please sign in to get started
           </p>
           <a
             href="/auth/signin"
@@ -38,7 +42,7 @@ export function MainLayout() {
                      hover:bg-light-accent-focus dark:hover:bg-dark-accent-focus
                      text-white rounded-md transition-colors duration-200"
           >
-            Sign in with GitHub
+            Sign in
           </a>
         </div>
       </div>
@@ -50,20 +54,20 @@ export function MainLayout() {
       <Header />
       
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Repository Selection and File Explorer */}
+        {/* Left Panel - File Explorer */}
         <div className="w-80 flex flex-col border-r border-light-border-primary dark:border-dark-border-primary">
-          {/* Repository Selector */}
           <div className="p-4 border-b border-light-border-primary dark:border-dark-border-primary">
-            <RepositorySelector
-              onSelectRepository={handleRepositorySelect}
-              currentRepo={currentRepo}
-            />
+            <h3 className="text-sm font-medium text-light-text-primary dark:text-dark-text-primary">
+              File Explorer
+            </h3>
+            <p className="text-xs text-light-text-muted dark:text-dark-text-muted mt-1">
+              Browse and edit files
+            </p>
           </div>
 
-          {/* File Explorer */}
           <div className="flex-1 overflow-hidden">
             <Sidebar
-              currentRepo={currentRepo}
+              currentRepo={undefined}
               onFileSelect={handleFileSelect}
               selectedFile={currentFile?.path}
             />
@@ -74,7 +78,7 @@ export function MainLayout() {
         <div className="flex-1">
           <ChatInterface
             currentFile={currentFile}
-            repositoryContext={currentRepo}
+            repositoryContext={undefined}
           />
         </div>
       </div>
