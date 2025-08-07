@@ -34,23 +34,50 @@ export async function GET(request: NextRequest) {
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     start(controller) {
-      terminal.onData((data) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'output', data })}\n\n`))
-      })
+      // Store controller reference for proper cleanup
+      let isClosed = false
+      
+      const dataHandler = (data: string) => {
+        if (!isClosed) {
+          try {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'output', data })}\n\n`))
+          } catch (error) {
+            console.error('Terminal stream error:', error)
+            isClosed = true
+          }
+        }
+      }
+      
+      terminal.onData(dataHandler)
 
       // Send initial connection message
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'connected', sessionId })}\n\n`))
+      if (!isClosed) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'connected', sessionId })}\n\n`))
+      }
 
       // Keep connection alive
       const keepAlive = setInterval(() => {
-        controller.enqueue(encoder.encode(`: keepalive\n\n`))
+        if (!isClosed) {
+          try {
+            controller.enqueue(encoder.encode(`: keepalive\n\n`))
+          } catch (error) {
+            clearInterval(keepAlive)
+            isClosed = true
+          }
+        }
       }, 30000)
 
       // Clean up on close
       return () => {
+        isClosed = true
         clearInterval(keepAlive)
+        // Note: terminal.onData cleanup is handled by the terminal instance itself
       }
     },
+    cancel() {
+      // Stream was cancelled/closed
+      console.log('Terminal stream cancelled')
+    }
   })
 
   return new Response(stream, {

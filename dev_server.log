@@ -1,0 +1,35 @@
+
+> claude-code-ide@0.1.0 dev
+> next dev --turbopack
+
+ ⚠ Port 3000 is in use by process 28436, using available port 3001 instead.
+   ▲ Next.js 15.4.5 (Turbopack)
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.1.131:3001
+   - Environments: .env.local
+   - Experiments (use with caution):
+     ⨯ reactCompiler
+     · optimizePackageImports
+
+ ✓ Starting...
+ ✓ Ready in 900ms
+ ⚠ Webpack is configured while Turbopack is not, which may cause problems.
+ ⚠ See instructions if you need to configure Turbopack:
+  https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
+
+ ○ Compiling /api/terminal ...
+ ✓ Compiled /api/terminal in 725ms
+ GET /api/terminal?sessionId=cleantest 200 in 992ms
+Terminal stream cancelled
+Terminal stream error: TypeError: Invalid state: Controller is already closed
+    at dataHandler (src/app/api/terminal/route.ts:43:23)
+  41 |         if (!isClosed) {
+  42 |           try {
+> 43 |             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'output', data })}\n\n`))
+     |                       ^
+  44 |           } catch (error) {
+  45 |             console.error('Terminal stream error:', error)
+  46 |             isClosed = true {
+  code: 'ERR_INVALID_STATE'
+}
+ POST /api/terminal 200 in 42ms

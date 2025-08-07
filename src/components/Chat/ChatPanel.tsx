@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, memo, useMemo } from 'react'
 import { Message } from './Message'
 import { ChatInput } from './ChatInput'
 import { useOpenAI } from '@/hooks/useOpenAI'
@@ -14,7 +14,7 @@ interface ChatPanelProps {
   workingDirectory?: string
 }
 
-export function ChatPanel({ currentFile, workingDirectory }: ChatPanelProps) {
+export const ChatPanel = memo(function ChatPanel({ currentFile, workingDirectory }: ChatPanelProps) {
   const { messages, isLoading, sendMessage, clearHistory } = useOpenAI()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [showSettings, setShowSettings] = useState(false)
@@ -27,7 +27,7 @@ export function ChatPanel({ currentFile, workingDirectory }: ChatPanelProps) {
     scrollToBottom()
   }, [messages])
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = useMemo(() => async (content: string) => {
     // Build context from current file and working directory
     let contextualMessage = content
     
@@ -47,7 +47,7 @@ ${content}`
     }
 
     await sendMessage(contextualMessage)
-  }
+  }, [currentFile, workingDirectory, sendMessage])
 
   const getLanguageFromPath = (path: string): string => {
     const ext = path.split('.').pop()?.toLowerCase()
@@ -185,4 +185,4 @@ ${content}`
       </div>
     </div>
   )
-}
+})

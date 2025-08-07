@@ -1,11 +1,11 @@
 {
   "test_summary": {
     "total_tests": 6,
-    "passed": 6,
-    "failed": 0,
+    "passed": 5,
+    "failed": 1,
     "errors": 0,
     "skipped": 0,
-    "success_rate": 100.0
+    "success_rate": 83.33
   },
   "detailed_results": [
     {
@@ -16,7 +16,7 @@
       "expected": "All required scripts present",
       "actual": "All scripts found",
       "error_message": null,
-      "execution_time": 0.00011420249938964844,
+      "execution_time": 0.0008540153503417969,
       "suggestions": []
     },
     {
@@ -25,9 +25,9 @@
       "status": "TestStatus.PASSED",
       "description": "Check if dependencies are installed",
       "expected": "Dependencies properly installed",
-      "actual": "414 dependencies found",
+      "actual": "428 dependencies found",
       "error_message": null,
-      "execution_time": 0.0005140304565429688,
+      "execution_time": 0.001825094223022461,
       "suggestions": []
     },
     {
@@ -38,7 +38,7 @@
       "expected": "All required files and directories present",
       "actual": "File structure is complete",
       "error_message": null,
-      "execution_time": 7.200241088867188e-05,
+      "execution_time": 9.393692016601562e-05,
       "suggestions": []
     },
     {
@@ -49,7 +49,7 @@
       "expected": "All component files present",
       "actual": "All components found",
       "error_message": null,
-      "execution_time": 5.602836608886719e-05,
+      "execution_time": 0.00037479400634765625,
       "suggestions": []
     },
     {
@@ -60,33 +60,43 @@
       "expected": "No TypeScript errors",
       "actual": "TypeScript compilation successful",
       "error_message": null,
-      "execution_time": 1.9197776317596436,
+      "execution_time": 1.6836600303649902,
       "suggestions": []
     },
     {
       "test_name": "ESLint Compliance",
       "feature_type": "FeatureType.INTEGRATION",
-      "status": "TestStatus.PASSED",
+      "status": "TestStatus.FAILED",
       "description": "Check ESLint compliance",
       "expected": "No linting errors",
-      "actual": "ESLint check passed",
-      "error_message": null,
-      "execution_time": 1.8796651363372803,
-      "suggestions": []
+      "actual": "ESLint errors found",
+      "error_message": "\n> claude-code-ide@0.1.0 lint\n> next lint\n\n\n./src/components/ErrorBoundary.tsx\n87:54  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities\n87:66  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities\n\ninfo  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules\n",
+      "execution_time": 1.9911291599273682,
+      "suggestions": [
+        "Fix ESLint errors in source code",
+        "Run 'npm run lint -- --fix' for auto-fixable issues",
+        "Update ESLint configuration if needed"
+      ]
     }
   ],
-  "failed_features": [],
-  "critical_issues": [],
+  "failed_features": [
+    "ESLint Compliance"
+  ],
+  "critical_issues": [
+    "ESLint Compliance"
+  ],
   "fix_plan": {
-    "immediate": [],
+    "immediate": [
+      "Fix ESLint errors in source code",
+      "Run 'npm run lint -- --fix' for auto-fixable issues"
+    ],
     "short_term": [],
     "long_term": []
   },
   "recommendations": [
-    "\u2705 All tests passed! Your application is in good shape",
-    "\ud83d\ude80 Consider adding more comprehensive tests",
-    "\ud83d\udcca Implement performance monitoring",
-    "\ud83d\udd27 Add integration tests for user workflows"
+    "\u26a0\ufe0f Minor issues detected - easy to fix",
+    "\ud83d\udd27 Focus on the failed tests first",
+    "\u2705 Most functionality is working correctly"
   ],
   "next_steps": [
     "Address critical integration issues first",

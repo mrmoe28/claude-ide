@@ -1,5 +1,6 @@
 'use client'
 
+import { memo, useMemo } from 'react'
 import { User, Bot } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 
@@ -9,8 +10,12 @@ interface MessageProps {
   timestamp: Date
 }
 
-export function Message({ role, content, timestamp }: MessageProps) {
+export const Message = memo(function Message({ role, content, timestamp }: MessageProps) {
   const isUser = role === 'user'
+  
+  const formattedTime = useMemo(() => {
+    return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }, [timestamp])
 
   return (
     <div className={`flex gap-3 p-4 ${isUser ? 'bg-light-bg-secondary dark:bg-dark-bg-secondary' : ''}`}>
@@ -32,7 +37,7 @@ export function Message({ role, content, timestamp }: MessageProps) {
             {isUser ? 'You' : 'Claude'}
           </span>
           <span className="text-xs text-light-text-muted dark:text-dark-text-muted">
-            {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {formattedTime}
           </span>
         </div>
 
@@ -74,4 +79,4 @@ export function Message({ role, content, timestamp }: MessageProps) {
       </div>
     </div>
   )
-}
+})

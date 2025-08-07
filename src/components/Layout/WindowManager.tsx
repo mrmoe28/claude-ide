@@ -7,6 +7,18 @@ import { Sidebar } from '@/components/FileExplorer/Sidebar'
 import { CodeEditor } from '@/components/Editor/CodeEditor'
 import { ChatPanel } from '@/components/Chat/ChatPanel'
 import { TerminalIcon, MessageSquare, X, Minimize2, Square } from 'lucide-react'
+import { 
+  EditorErrorBoundary,
+  TerminalErrorBoundary,
+  ChatErrorBoundary,
+  FileExplorerErrorBoundary
+} from '@/components/ComponentErrorBoundary'
+import {
+  EditorSuspense,
+  TerminalSuspense,
+  ChatSuspense,
+  FileExplorerSuspense
+} from '@/components/SuspenseWrapper'
 
 const MacTerminal = dynamic(
   () => import('@/components/Terminal/MacTerminal').then(mod => ({ default: mod.MacTerminal })),
@@ -93,10 +105,14 @@ export function WindowManager({
                     </button>
                   </div>
                 </div>
-                <Sidebar
-                  onFileSelect={onFileSelect}
-                  selectedFile={currentFile?.path}
-                />
+                <FileExplorerErrorBoundary>
+                  <FileExplorerSuspense>
+                    <Sidebar
+                      onFileSelect={onFileSelect}
+                      selectedFile={currentFile?.path}
+                    />
+                  </FileExplorerSuspense>
+                </FileExplorerErrorBoundary>
               </div>
             </Panel>
             <PanelResizeHandle className="w-1 bg-light-border-primary dark:bg-dark-border-primary hover:bg-blue-500 transition-colors" />
@@ -137,14 +153,16 @@ export function WindowManager({
             {showTerminal ? (
               <PanelGroup direction="vertical">
                 <Panel defaultSize={terminalMinimized ? 90 : 65} minSize={30}>
-                  <CodeEditor 
-                    file={currentFile}
-                    onFileChange={(content) => {
-                      if (currentFile) {
-                        onFileSelect(currentFile.path, content)
-                      }
-                    }}
-                  />
+                  <EditorErrorBoundary>
+                    <CodeEditor 
+                      file={currentFile}
+                      onFileChange={(content) => {
+                        if (currentFile) {
+                          onFileSelect(currentFile.path, content)
+                        }
+                      }}
+                    />
+                  </EditorErrorBoundary>
                 </Panel>
                 
                 <PanelResizeHandle className="h-1 bg-light-border-primary dark:bg-dark-border-primary hover:bg-blue-500 transition-colors" />
@@ -175,20 +193,24 @@ export function WindowManager({
                       </div>
                     </div>
                     {!terminalMinimized && (
-                      <MacTerminal workingDirectory={workingDirectory} />
+                      <TerminalErrorBoundary>
+                        <MacTerminal workingDirectory={workingDirectory} />
+                      </TerminalErrorBoundary>
                     )}
                   </div>
                 </Panel>
               </PanelGroup>
             ) : (
-              <CodeEditor 
-                file={currentFile}
-                onFileChange={(content) => {
-                  if (currentFile) {
-                    onFileSelect(currentFile.path, content)
-                  }
-                }}
-              />
+              <EditorErrorBoundary>
+                <CodeEditor 
+                  file={currentFile}
+                  onFileChange={(content) => {
+                    if (currentFile) {
+                      onFileSelect(currentFile.path, content)
+                    }
+                  }}
+                />
+              </EditorErrorBoundary>
             )}
           </div>
         </Panel>
@@ -223,10 +245,12 @@ export function WindowManager({
                   </div>
                 </div>
                 {!chatMinimized && (
-                  <ChatPanel 
-                    currentFile={currentFile}
-                    workingDirectory={workingDirectory}
-                  />
+                  <ChatErrorBoundary>
+                    <ChatPanel 
+                      currentFile={currentFile}
+                      workingDirectory={workingDirectory}
+                    />
+                  </ChatErrorBoundary>
                 )}
               </div>
             </Panel>
