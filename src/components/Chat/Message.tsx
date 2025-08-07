@@ -2,6 +2,9 @@
 
 import { User, Bot } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { useTheme } from '@/contexts/ThemeContext'
 
 interface MessageProps {
   role: 'user' | 'assistant'
@@ -10,6 +13,7 @@ interface MessageProps {
 }
 
 export function Message({ role, content, timestamp }: MessageProps) {
+  const { theme } = useTheme()
   const isUser = role === 'user'
 
   return (
@@ -56,11 +60,14 @@ export function Message({ role, content, timestamp }: MessageProps) {
                 }
 
                 return (
-                  <pre className="bg-light-bg-tertiary dark:bg-dark-bg-tertiary p-4 rounded-md overflow-x-auto my-2">
-                    <code className="text-sm font-mono">
-                      {String(children).replace(/\n$/, '')}
-                    </code>
-                  </pre>
+                  <SyntaxHighlighter
+                    style={theme === 'dark' ? oneDark : oneLight as any}
+                    language={language}
+                    PreTag="div"
+                    className="rounded-md text-sm"
+                  >
+                    {String(children).replace(/\n$/, '')}
+                  </SyntaxHighlighter>
                 )
               },
               pre({ children }) {
